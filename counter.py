@@ -3,16 +3,17 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import requests
 from bs4 import BeautifulSoup
+from datetime import datetime
 
 # Set up Google Sheets API credentials
 scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-credentials = ServiceAccountCredentials.from_json_keyfile_name('credentials.json', scope)
+credentials = ServiceAccountCredentials.from_json_keyfile_name('click_counter\clicks.json', scope)
 client = gspread.authorize(credentials)
 
-# Update Google Sheets with click counts
+# Update Google Sheets with click counts per day
 def update_click_counts(document_name:str, sheet_name:str, links:dict):
     """
-    Update the click counts in a Google Sheets document based on the provided links.
+    Update the click counts per day in a Google Sheets document based on the provided links.
 
     Args:
         document_name (str): Name of the Google Sheets document.
@@ -26,6 +27,16 @@ def update_click_counts(document_name:str, sheet_name:str, links:dict):
     # Open the Google Sheets document
     sheet = client.open(document_name).worksheet(sheet_name)
 
+    # Get the current date
+    current_date = datetime.now().strftime("%d-%m-%Y")
+
+    # Check if the current date column already exists in the sheet
+    existing_dates = sheet.row_values(1)
+    if current_date not in existing_dates:
+        # Add the current date as a column header
+        existing_dates.append(current_date)
+        sheet.update('1:1', [existing_dates])
+
     for link, cell_range in links.items():
         try:
             # Send a GET request to get the HTML content
@@ -38,10 +49,13 @@ def update_click_counts(document_name:str, sheet_name:str, links:dict):
             # Extract the click count from the parsed HTML
             click_count = extract_click_count(soup)
 
+            # Get the index of the current date column
+            date_index = existing_dates.index(current_date) + 1
+
             # Update the corresponding cell in the sheet with the click count
             if click_count is not None:
-                sheet.update(cell_range, click_count)
-                print(f'Successfully updated {cell_range} with click count {click_count}')
+                sheet.update_cell(int(cell_range), date_index, click_count)
+                print(f'Successfully updated {cell_range} with click count {click_count} for {current_date}')
             else:
                 print(f'Unable to extract click count for {cell_range}')
 
@@ -73,14 +87,16 @@ def extract_click_count(soup):
 
 if __name__ == '__main__':
     # Google Sheets document and sheet name
-    document_name = 'your document name'
-    sheet_name = 'your sheet name'
+    document_name = 'clicks counter'
+    sheet_name = 'Sheet1'
 
     # Links and corresponding cell range in the sheet
     links = {
-        'example1.com': 'A1',
-        'example2.com': 'A10',
-        'example3.com': 'A20'
+        'https://www.shorturl.at/url-total-clicks.php?u=shorturl.at/fqGMQ': 4,
+        'https://www.shorturl.at/url-total-clicks.php?u=shorturl.at/mwyDV': 11,
+        'https://www.shorturl.at/url-total-clicks.php?u=shorturl.at/pCLSY': 20,
+        'https://www.shorturl.at/url-total-clicks.php?u=shorturl.at/tORT2': 21,
+        'https://www.shorturl.at/url-total-clicks.php?u=shorturl.at/asvD2': 22
     }
 
     update_click_counts(document_name, sheet_name, links)
