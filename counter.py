@@ -30,13 +30,6 @@ def update_click_counts(document_name:str, sheet_name:str, links:dict):
     # Get the current date
     current_date = datetime.now().strftime("%d-%m-%Y")
 
-    # Check if the current date column already exists in the sheet
-    existing_dates = sheet.row_values(1)
-    if current_date not in existing_dates:
-        # Add the current date as a column header
-        existing_dates.append(current_date)
-        sheet.update('1:1', [existing_dates])
-
     for link, cell_range in links.items():
         try:
             # Send a GET request to get the HTML content
@@ -49,12 +42,12 @@ def update_click_counts(document_name:str, sheet_name:str, links:dict):
             # Extract the click count from the parsed HTML
             click_count = extract_click_count(soup)
 
-            # Get the index of the current date column
-            date_index = existing_dates.index(current_date) + 1
+            # Get the cell corresponding to the current date
+            cell = sheet.find(current_date)
 
             # Update the corresponding cell in the sheet with the click count
             if click_count is not None:
-                sheet.update_cell(int(cell_range), date_index, click_count)
+                sheet.update_cell(int(cell_range), cell.col, click_count)
                 print(f'Successfully updated {cell_range} with click count {click_count} for {current_date}')
             else:
                 print(f'Unable to extract click count for {cell_range}')
